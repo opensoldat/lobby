@@ -1,13 +1,13 @@
 # lobby
 
-##Requirements
+## Requirements
 * go
 
-##Running
+## Running
 build.bat
 or
 ./build.sh
 
-##License
+## License
 AGPLv3
 
