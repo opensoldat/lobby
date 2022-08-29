@@ -52,7 +52,7 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 func serversHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	fmt.Fprintf(w, "{\"servers\":[")
+	fmt.Fprintf(w, "{\"Servers\":[")
 
 	u, err := url.Parse(r.RequestURI)
 	if err != nil {
