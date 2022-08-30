@@ -9,38 +9,36 @@
 package main
 
 import (
-	"encoding/binary"
 	"encoding/json"
 	"fmt"
-	"net"
 	"net/http"
 	"net/url"
 )
 
 type Server struct {
-	//AC             bool     `json:"AC"`
-	//Advanced       bool     `json:"Advanced"`
-	//Dedicated      bool     `json:"Dedicated"`
-	//Private        bool     `json:"Private"`
-	//Realistic      bool     `json:"Realistic"`
-	//Survival       bool     `json:"Survival"`
-	//WM             bool     `json:"WM"`
-	//BonusFreq      uint8    `json:"BonusFreq"`
-	//ConnectionType uint8    `json:"ConnectionType"`
-	//MaxPlayers     uint8    `json:"MaxPlayers"`
-	//NumBots        uint8    `json:"NumBots"`
-	//NumPlayers     uint8    `json:"NumPlayers"`
-	Port uint16 `json:"Port"`
-	//Respawn        uint16   `json:"Respawn"`
-	//Country        string   `json:"Country"`
-	//CurrentMap     string   `json:"CurrentMap"`
-	Version string `json:"Version"`
-	//GameStyle      string   `json:"GameStyle"`
-	IP   string `json:"IP"`
-	Info string `json:"Info"`
-	//Name           string   `json:"Name"`
-	OS string `json:"OS"`
-	//Players        []string `json:"-"`
+	AC             bool     `json:"AC"`
+	Advanced       bool     `json:"Advanced"`
+	Dedicated      bool     `json:"Dedicated"`
+	Private        bool     `json:"Private"`
+	Realistic      bool     `json:"Realistic"`
+	Survival       bool     `json:"Survival"`
+	WM             bool     `json:"WM"`
+	BonusFreq      uint8    `json:"BonusFreq"`
+	ConnectionType uint8    `json:"ConnectionType"`
+	MaxPlayers     uint8    `json:"MaxPlayers"`
+	NumBots        uint8    `json:"NumBots"`
+	NumPlayers     uint8    `json:"NumPlayers"`
+	Port           uint16   `json:"Port"`
+	Respawn        uint16   `json:"Respawn"`
+	Country        string   `json:"Country"`
+	CurrentMap     string   `json:"CurrentMap"`
+	Version        string   `json:"Version"`
+	GameStyle      string   `json:"GameStyle"`
+	IP             string   `json:"IP"`
+	Info           string   `json:"Info"`
+	Name           string   `json:"Name"`
+	OS             string   `json:"OS"`
+	Players        []string `json:"-"`
 }
 
 var servers = make(map[uint64]Server)
@@ -52,6 +50,9 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 func serversHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	setupCorsResponse(&w, r)
+	if (*r).Method == "OPTIONS" {
+		return
+	}
 
 	fmt.Fprintf(w, "{\"Servers\":[")
 
@@ -93,43 +94,54 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	var ip uint32 = 0
-	//var port uint16 = 0
-	var port uint64 = 0
-	var net_ip = net.ParseIP("0.0.0.1")
-	if net_ip != nil {
-		ipp := uint64(ip2int(net_ip))
-		fmt.Println("ipp", ipp)
-		ip = ip2int(net_ip)
-		port = uint64(80 << 32)
+	servers[0] = Server{
+		AC:             false,
+		Advanced:       false,
+		Dedicated:      true,
+		Private:        true,
+		Realistic:      false,
+		Survival:       false,
+		WM:             false,
+		BonusFreq:      240,
+		ConnectionType: 3,
+		MaxPlayers:     16,
+		NumBots:        0,
+		NumPlayers:     0,
+		Port:           80,
+		Respawn:        60,
+		Country:        "DE",
+		Version:        "1.8.0",
+		GameStyle:      "CTF",
+		IP:             "127.0.0.1",
+		Info:           "info",
+		Name:           "OpenSoldatServer 1!",
+		OS:             "windows",
+		Players:        nil,
 	}
 
-	id := generate_id("27.0.0.1", 80)
-	fmt.Println("data", ip, port, id)
-
-	servers[id] = Server{
-		IP:      "127.0.0.1",
-		Port:    80,
-		Info:    "hello",
-		OS:      "windows",
-		Version: "1.7.1",
-	}
-
-	// example adding new entries
-	servers[generate_id("127.0.0.1", 81)] = Server{
-		IP:      "227.0.0.1",
-		Port:    81,
-		Info:    "hi",
-		OS:      "mac",
-		Version: "1.7.1",
-	}
-
-	servers[generate_id("227.0.0.1", 82)] = Server{
-		IP:      "327.0.0.1",
-		Port:    82,
-		Info:    "hi",
-		OS:      "linux",
-		Version: "1.7.0",
+	servers[1] = Server{
+		AC:             false,
+		Advanced:       false,
+		Dedicated:      true,
+		Private:        true,
+		Realistic:      false,
+		Survival:       false,
+		WM:             false,
+		BonusFreq:      240,
+		ConnectionType: 3,
+		MaxPlayers:     16,
+		NumBots:        0,
+		NumPlayers:     0,
+		Port:           81,
+		Respawn:        60,
+		Country:        "DE",
+		Version:        "1.7.1",
+		GameStyle:      "DM",
+		IP:             "227.0.0.1",
+		Info:           "info",
+		Name:           "OpenSoldatServer 2!",
+		OS:             "mac",
+		Players:        nil,
 	}
 
 	http.HandleFunc("/", indexHandler)
@@ -146,26 +158,6 @@ func setupCorsResponse(w *http.ResponseWriter, req *http.Request) {
 	(*w).Header().Set("Access-Control-Allow-Origin", "*")
 	(*w).Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
 	(*w).Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Authorization")
-}
-
-func generate_id(ip_str string, port uint16) uint64 {
-	const ERROR_RESULT = 0
-
-	var result uint64 = ERROR_RESULT
-	var net_ip = net.ParseIP(ip_str)
-	if net_ip == nil {
-		result = uint64(ip2int(net_ip))
-		result += uint64(port << 32)
-	}
-
-	return result
-}
-
-func ip2int(ip net.IP) uint32 {
-	if len(ip) == 16 {
-		return binary.BigEndian.Uint32(ip[12:16])
-	}
-	return binary.BigEndian.Uint32(ip)
 }
 
 /* vim: se ts=2:sts=2:sw=2:noet */
