@@ -160,4 +160,4 @@ func setupCorsResponse(w *http.ResponseWriter, req *http.Request) {
 	(*w).Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Authorization")
 }
 
-/* vim: se ts=2:sts=2:sw=2:noet */
+// vim: ts=2:sts=2:sw=2:noet
