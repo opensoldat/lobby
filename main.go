@@ -10,10 +10,25 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
+	"io/ioutil"
+	"log"
+	"math"
 	"net/http"
-	"net/url"
+	"os"
+	"strconv"
 )
+
+// types
+type Configuration struct {
+	Port int
+}
+
+type Servers struct {
+	//Servers map[uint64]Server `json:"Servers"`
+	Servers []Server `json:"Servers"`
+}
 
 type Server struct {
 	AC             bool     `json:"AC"`
@@ -41,10 +56,25 @@ type Server struct {
 	Players        []string `json:"-"`
 }
 
-var servers = make(map[uint64]Server)
+// globals
+// var servers = make(map[uint64]Server)
+// var servers = Servers{Servers: make(map[uint64]Server)}
+var servers = Servers{Servers: []Server{}}
 
+var templateServers = Servers{Servers: []Server{}}
+var configuration Configuration = Configuration{}
+
+// functions
 func indexHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "<h1 style='font-family:monospace'>slobby v0.0.0 alpha1</h1>")
+	// workaround for missing players endpoint
+	w.Header().Set("Content-Type", "application/json")
+	setupCorsResponse(&w, r)
+	if (*r).Method == "OPTIONS" {
+		return
+	}
+	fmt.Fprintf(w, "{\"Players\":[]}")
+
+	//fmt.Fprintf(w, "<h1 style='font-family:monospace'>slobby v0.0.0 alpha1</h1>")
 }
 
 func serversHandler(w http.ResponseWriter, r *http.Request) {
@@ -54,110 +84,186 @@ func serversHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Fprintf(w, "{\"Servers\":[")
+	/*
+		fmt.Fprintf(w, "{\"Servers\":[")
 
-	u, err := url.Parse(r.RequestURI)
-	if err != nil {
-		return
-	}
-	queryParams, err := url.ParseQuery(u.RawQuery)
-	if err != nil {
-		return
-	}
+		u, err := url.Parse(r.RequestURI)
+		if err != nil {
+			return
+		}
+		queryParams, err := url.ParseQuery(u.RawQuery)
+		if err != nil {
+			return
+		}
 
-	param_version := queryParams["version"]
-	param_os := queryParams["os"]
+		param_version := queryParams["version"]
+		param_os := queryParams["os"]
 
-	// TODO: lock here
-	// TODO: defer unlock
-	i := 0
-	for _, server := range servers {
-		if (param_version == nil || param_version[0] == server.Version) &&
-			(param_os == nil || param_os[0] == server.OS) {
-			output, err := json.Marshal(server)
-			if err == nil {
-				if i != 0 {
-					fmt.Fprintf(w, ","+string(output))
-				} else {
-					fmt.Fprintf(w, string(output))
-					i++
+		// TODO: lock here
+		// TODO: defer unlock
+		i := 0
+		for _, server := range servers {
+			if (param_version == nil || param_version[0] == server.Version) &&
+				(param_os == nil || param_os[0] == server.OS) {
+				output, err := json.Marshal(server)
+				if err == nil {
+					if i != 0 {
+						fmt.Fprintf(w, ","+string(output))
+					} else {
+						fmt.Fprintf(w, string(output))
+						i++
+					}
 				}
 			}
 		}
-	}
+		fmt.Fprintf(w, "]}")
+	*/
 
-	fmt.Fprintf(w, "]}")
+	output, err := json.Marshal(servers)
+	if err == nil {
+		fmt.Fprintf(w, string(output))
+	} else {
+		fmt.Fprintf(w, "{\"error\": \"503: internal server error\"}")
+	}
 }
 
 func registerHandler(w http.ResponseWriter, r *http.Request) {
 	// TODO
 }
 
-func main() {
-	servers[0] = Server{
+func hasFlag(name string) bool {
+	found := false
+	flag.Visit(func(f *flag.Flag) {
+		if f.Name == name {
+			found = true
+		}
+	})
+	return found
+}
+
+func handleSettings() {
+	var configPath string
+	var port int
+	var writeServerTemplate bool
+
+	flag.StringVar(&configPath, "config", ".", "config folder")
+	flag.IntVar(&port, "port", 80, "lobby port")
+	flag.BoolVar(&writeServerTemplate, "write-servers-example", false, "writes servers-example.json template file")
+	flag.Parse()
+
+	if writeServerTemplate {
+		generateTemplateServersConfig()
+		os.Exit(0)
+	}
+
+	readConfigFile(configPath, hasFlag("config"))
+
+	if port <= math.MaxUint16 && port >= 0 && hasFlag("port") {
+		configuration.Port = port
+	}
+
+	readServersFile(configPath)
+
+}
+
+func readConfigFile(path string, isCustom bool) {
+	if isCustom {
+		println("Using custom config path:", path+"/config.json\n")
+	}
+	content, err := ioutil.ReadFile(path + "/config.json")
+	if err != nil {
+		log.Fatal("Error when opening file: ", err)
+	}
+
+	err = json.Unmarshal(content, &configuration)
+	if err != nil {
+		log.Fatal("Error during Unmarshal(): ", err)
+	}
+
+	if configuration.Port > math.MaxInt16 || configuration.Port < 0 {
+		configuration.Port = 80
+	}
+}
+
+func generateTemplateServersConfig() {
+	//var templateServers =  Servers{Servers: []Server{}}
+	templateServers.Servers = append(templateServers.Servers, Server{
 		AC:             false,
 		Advanced:       false,
 		Dedicated:      true,
-		Private:        true,
+		Private:        false,
 		Realistic:      false,
 		Survival:       false,
 		WM:             false,
 		BonusFreq:      240,
 		ConnectionType: 3,
-		MaxPlayers:     16,
+		MaxPlayers:     24,
 		NumBots:        0,
 		NumPlayers:     0,
-		Port:           80,
+		Port:           23073,
 		Respawn:        60,
 		Country:        "DE",
+		CurrentMap:     "ctf_Ash",
 		Version:        "1.8.0",
 		GameStyle:      "CTF",
 		IP:             "127.0.0.1",
-		Info:           "info",
-		Name:           "OpenSoldatServer 1!",
-		OS:             "windows",
+		Info:           "Server Info",
+		Name:           "OpenSoldat Test Server",
+		OS:             "linux",
 		Players:        nil,
-	}
+	})
 
-	servers[1] = Server{
-		AC:             false,
-		Advanced:       false,
-		Dedicated:      true,
-		Private:        true,
-		Realistic:      false,
-		Survival:       false,
-		WM:             false,
-		BonusFreq:      240,
-		ConnectionType: 3,
-		MaxPlayers:     16,
-		NumBots:        0,
-		NumPlayers:     0,
-		Port:           81,
-		Respawn:        60,
-		Country:        "DE",
-		Version:        "1.7.1",
-		GameStyle:      "DM",
-		IP:             "227.0.0.1",
-		Info:           "info",
-		Name:           "OpenSoldatServer 2!",
-		OS:             "mac",
-		Players:        nil,
-	}
-
-	http.HandleFunc("/", indexHandler)
-	http.HandleFunc("/v0/servers", serversHandler)
-	http.HandleFunc("/v0/register", registerHandler)
-
-	err := http.ListenAndServe(":80", nil)
+	file, err := json.MarshalIndent(templateServers, "", " ")
 	if err != nil {
-		panic(err)
+		log.Fatal("Error during Marshal(): ", err)
 	}
+	err = ioutil.WriteFile("servers-example.json", file, 0644)
+	if err != nil {
+		log.Fatal("Error when writing file: ", err)
+	}
+}
+
+func readServersFile(path string) {
+	content, err := ioutil.ReadFile(path + "/servers.json")
+	if err != nil {
+		log.Print("Error when opening file: ", err)
+		return
+
+		//log.Fatal("Error when opening file: ", err)
+	}
+
+	err = json.Unmarshal(content, &servers)
+	if err != nil {
+		log.Print("Error during Unmarshal(): ", err)
+		return
+		//log.Fatal("Error during Unmarshal(): ", err)
+	}
+	//fmt.Println("Debug:", servers.Servers[0])
 }
 
 func setupCorsResponse(w *http.ResponseWriter, req *http.Request) {
 	(*w).Header().Set("Access-Control-Allow-Origin", "*")
 	(*w).Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
 	(*w).Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Authorization")
+}
+
+func registerHandlers() {
+	http.HandleFunc("/", indexHandler)
+	http.HandleFunc("/v0/servers", serversHandler)
+	http.HandleFunc("/v0/register", registerHandler)
+}
+
+func main() {
+	handleSettings()
+
+	registerHandlers()
+
+	//println("Port: %d\n", configuration.Port)
+	fmt.Printf("Server started: http://localhost:%d/v0/servers\n", configuration.Port)
+	err := http.ListenAndServe(":"+strconv.Itoa(configuration.Port), nil)
+	if err != nil {
+		panic(err)
+	}
 }
 
 // vim: ts=2:sts=2:sw=2:noet
